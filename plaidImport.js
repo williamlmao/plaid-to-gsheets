@@ -1,19 +1,15 @@
-const transactionSheetName = "Transactions";
-const accountBalancesSheetName = "Account Balances";
-
-// Function list
-
 // Import all new transactions & account balances
 const importAll = () => {
   let transactions = [];
   let accounts = [];
   // Start date is the latest transaction date minus buffer
-  const start_date = formatDate(getStartDate(10, "A"));
+  const start_date = formatDate(getStartDate(500, "A"));
   const end_date = formatDate(new Date());
   // Get all of the access tokens + account metadata
   const tokensProp = JSON.parse(
     PropertiesService.getScriptProperties().getProperty("tokens")
   );
+  // For each access token, get all transactions and account balances. Normalize the data.
   for (let owner in tokensProp) {
     for (let account in tokensProp[owner]) {
       const accessToken = tokensProp[owner][account]["token"];
@@ -24,13 +20,20 @@ const importAll = () => {
         account,
         "sandbox"
       );
-      transactions.concat(response.transactions);
-      accounts.concat(response.accounts);
+
+      let cleanedTransactions = cleanTransactions(
+        response.transactions,
+        getAccountsMap(response.accounts),
+        true,
+        owner,
+        account
+      );
+      transactions = transactions.concat(cleanedTransactions);
+      accounts = accounts.concat(response.accounts);
     }
   }
-  console.log("transactions", transactions);
-  console.log("accounts", accounts);
-  // For each access token, get all transactions
+  writeDataToBottomOfTab(transactionSheetName, transactions);
+  // cleanAccounts(accounts);
   // Write it to the sheet
 };
 // Import transactions from a specific range

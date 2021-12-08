@@ -9,14 +9,15 @@
  * @param {*} account
  * @returns
  */
-const cleanTransactions = (
+const cleanTransactionsOld = (
   transactions,
   accounts,
   includeHeader,
   owner,
   account
 ) => {
-  const transactionIds = getTransactionIds("M");
+  const transactionIds = getTransactionIds("L");
+
   let result = [];
   transactions.forEach((transaction) => {
     let account_id = transaction.account_id;
@@ -42,91 +43,91 @@ const cleanTransactions = (
     const PlaidCat2 = transaction.category[1] ? transaction.category[1] : "";
     const PlaidCat3 = transaction.category[2] ? transaction.category[2] : "";
 
-    const getCategory = () => {
-      // General categorization - everything runs through this to get initial guess at categorization
-      let category = PlaidCat1;
-      if (PlaidCat3 !== "") {
-        category = plaidCategory3Map[PlaidCat3];
-      } else if (PlaidCat2 !== "") {
-        category = plaidCategory2Map[PlaidCat2];
-      } else if (PlaidCat1 === "Service") {
-        category = "Misc";
-      }
-      // Specific categorization
-      if (transaction.name.includes("Amazon")) {
-        category = "Amazon";
-        return category;
-      }
-      if (transaction.name.includes("CONSERVICE LLC")) {
-        category = "Rent";
-        return category;
-      }
-      return category;
-    };
+    // const getCategory = () => {
+    //   // General categorization - everything runs through this to get initial guess at categorization
+    //   let category = PlaidCat1;
+    //   if (PlaidCat3 !== "") {
+    //     category = plaidCategory3Map[PlaidCat3];
+    //   } else if (PlaidCat2 !== "") {
+    //     category = plaidCategory2Map[PlaidCat2];
+    //   } else if (PlaidCat1 === "Service") {
+    //     category = "Misc";
+    //   }
+    //   // Specific categorization
+    //   if (transaction.name.includes("Amazon")) {
+    //     category = "Amazon";
+    //     return category;
+    //   }
+    //   if (transaction.name.includes("CONSERVICE LLC")) {
+    //     category = "Rent";
+    //     return category;
+    //   }
+    //   return category;
+    // };
 
-    const getTransactionType = () => {
-      const checkName = (term) => {
-        let tname = transaction.name.toLowerCase();
-        term = term.toLowerCase();
-        if (tname.includes(term)) {
-          console.log(tname, term, true);
-          return true;
-        } else {
-          return false;
-        }
-      };
-      // Expense, Income, Credit Card Payment, Internal account transfer
-      if (checkName("DISCOVER BANK P2P WILLIAM LIU WEB ID: 1770527921")) {
-        return "Internal Account Transfer";
-      } else if (PlaidCat1 === "Payment" && PlaidCat2 === "Credit Card") {
-        return "Credit Card Payment";
-      } else if (
-        PlaidCat2 === "Internal Account Transfer" ||
-        checkName("Discover High Yield") ||
-        checkName("GOLDMAN SACHS BA COLLECTION") ||
-        checkName("ACH Transfer to JPMORGAN CHASE BANK")
-      ) {
-        return "Internal Account Transfer";
-      } else if (
-        PlaidCat1 === "Transfer" &&
-        PlaidCat2 === "Payroll" &&
-        transaction.amount < 0
-      ) {
-        return "Income";
-      } else if (PlaidCat1 === "Tax" && PlaidCat2 === "Refund") {
-        return "Income";
-      } else if (
-        PlaidCat3 === "Coinbase" ||
-        checkName("Coinbase") ||
-        checkName("Robinhood") ||
-        checkName("WEBULL") ||
-        checkName("Manual DB-Bkrg") ||
-        checkName("Manual CR-Bkrg") ||
-        (PlaidCat1 === "Transfer" &&
-          PlaidCat2 === "Withdrawal" &&
-          PlaidCat3 == "")
-      ) {
-        return "Investment Account Transfer";
-      } else if (checkName("MEALPAL PAYMENT")) {
-        return "Income";
-      } else if (PlaidCat2 === "Interest Earned") {
-        return "Income";
-      } else if (
-        PlaidCat3 === "Venmo" ||
-        transaction.name.includes("Cash App") ||
-        transaction.name.includes("Zelle")
-      ) {
-        return "Payment App Transfer";
-      } else if (PlaidCat1 === "Transfer" && PlaidCat2 === "Deposit") {
-        return "Income";
-      } else if (PlaidCat1 === "Transfer" && PlaidCat2 === "Credit") {
-        return "Income";
-      } else if (transaction.amount < -750) {
-        return "Income";
-      } else {
-        return "Expense";
-      }
-    };
+    // const getTransactionType = () => {
+    //   const checkName = (term) => {
+    //     let tname = transaction.name.toLowerCase();
+    //     term = term.toLowerCase();
+    //     if (tname.includes(term)) {
+    //       console.log(tname, term, true);
+    //       return true;
+    //     } else {
+    //       return false;
+    //     }
+    //   };
+    //   // Expense, Income, Credit Card Payment, Internal account transfer
+    //   if (checkName("DISCOVER BANK P2P WILLIAM LIU WEB ID: 1770527921")) {
+    //     return "Internal Account Transfer";
+    //   } else if (PlaidCat1 === "Payment" && PlaidCat2 === "Credit Card") {
+    //     return "Credit Card Payment";
+    //   } else if (
+    //     PlaidCat2 === "Internal Account Transfer" ||
+    //     checkName("Discover High Yield") ||
+    //     checkName("GOLDMAN SACHS BA COLLECTION") ||
+    //     checkName("ACH Transfer to JPMORGAN CHASE BANK")
+    //   ) {
+    //     return "Internal Account Transfer";
+    //   } else if (
+    //     PlaidCat1 === "Transfer" &&
+    //     PlaidCat2 === "Payroll" &&
+    //     transaction.amount < 0
+    //   ) {
+    //     return "Income";
+    //   } else if (PlaidCat1 === "Tax" && PlaidCat2 === "Refund") {
+    //     return "Income";
+    //   } else if (
+    //     PlaidCat3 === "Coinbase" ||
+    //     checkName("Coinbase") ||
+    //     checkName("Robinhood") ||
+    //     checkName("WEBULL") ||
+    //     checkName("Manual DB-Bkrg") ||
+    //     checkName("Manual CR-Bkrg") ||
+    //     (PlaidCat1 === "Transfer" &&
+    //       PlaidCat2 === "Withdrawal" &&
+    //       PlaidCat3 == "")
+    //   ) {
+    //     return "Investment Account Transfer";
+    //   } else if (checkName("MEALPAL PAYMENT")) {
+    //     return "Income";
+    //   } else if (PlaidCat2 === "Interest Earned") {
+    //     return "Income";
+    //   } else if (
+    //     PlaidCat3 === "Venmo" ||
+    //     transaction.name.includes("Cash App") ||
+    //     transaction.name.includes("Zelle")
+    //   ) {
+    //     return "Payment App Transfer";
+    //   } else if (PlaidCat1 === "Transfer" && PlaidCat2 === "Deposit") {
+    //     return "Income";
+    //   } else if (PlaidCat1 === "Transfer" && PlaidCat2 === "Credit") {
+    //     return "Income";
+    //   } else if (transaction.amount < -750) {
+    //     return "Income";
+    //   } else {
+    //     return "Expense";
+    //   }
+    // };
 
     // Maps the transaction data into the correct order
     let arr = [
@@ -140,8 +141,9 @@ const cleanTransactions = (
       PlaidCat3,
       transaction.category_id,
       transaction.transaction_type,
-      getTransactionType(),
       transaction.transaction_id,
+      owner,
+      account,
       mask,
       accounts[account_id].name,
       accounts[account_id].type,
@@ -152,10 +154,10 @@ const cleanTransactions = (
       transaction.location.postal_code,
       transaction.location.country,
       transaction.location.store_number,
-      getCategory(),
-      transactionOwner, //owner
+      "Cat hold",
       transaction.amount,
     ];
+    console.log("arr", arr);
     result.push(arr);
   });
   //   Should headers be included?
@@ -239,7 +241,7 @@ const getHeaders = (sheetName) => {
  */
 const reset = () => {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(transactionsSheetName);
+  var sheet = ss.getSheetByName(transactionSheetName);
 
   var last_row = sheet.getLastRow();
   sheet.getRange("2:" + last_row).activate();
@@ -266,7 +268,7 @@ const getAccountsMap = (accounts) => {
  */
 const getTransactionIds = (columnLetter) => {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(transactionsSheetName);
+  let sheet = ss.getSheetByName(transactionSheetName);
   let transactionIds = sheet
     .getRange(`${columnLetter}2:${columnLetter}`)
     .getValues()
@@ -374,3 +376,30 @@ const getStartDate = (buffer, dateColumnLetter) => {
   start_date.setDate(start_date.getDate() - buffer);
   return start_date;
 };
+
+const getJsonArrayFromData = (data) => {
+  var obj = {};
+  var result = [];
+  var headers = data[0];
+  var cols = headers.length;
+  var row = [];
+
+  for (var i = 1, l = data.length; i < l; i++) {
+    // get a row to fill the object
+    row = data[i];
+    // clear object
+    obj = {};
+    for (var col = 0; col < cols; col++) {
+      // fill object with new values
+      obj[headers[col]] = row[col];
+    }
+    // add object in a final result
+    result.push(obj);
+  }
+
+  return result;
+};
+
+function test1() {
+  console.log("im here");
+}
