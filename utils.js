@@ -1,23 +1,22 @@
+const onOpen = () => {
+  ui.createMenu("Plaid API Ingest")
+    .addItem("Import Latest Transactions", "importAll")
+    .addItem("Import Date Range", "importAll")
+    .addItem("Set up", "setUp")
+    .addToUi();
+};
+
 /**
- * Excludes existing transactions by checking transaction IDs
- * Filters out excluded accounts
- * Automatically corrects the category
- * Automatically adds owner, split, and the amounts
+ * Updates transactions so that the schema matches the sheet. Converts from array of objects to 2D array.
+ * Removes existing transactions
+ * Removes pending transactions
  * @param {*} transactions
- * @param {*} accounts
- * @param {*} includeHeader
+ * @param {*} owner
  * @param {*} account
  * @returns
  */
-const cleanTransactionsOld = (
-  transactions,
-  accounts,
-  includeHeader,
-  owner,
-  account
-) => {
+const cleanTransactions = (transactions, accounts, owner, account) => {
   const transactionIds = getTransactionIds("L");
-
   let result = [];
   transactions.forEach((transaction) => {
     let account_id = transaction.account_id;
@@ -37,166 +36,76 @@ const cleanTransactionsOld = (
       return;
     }
 
-    transactionOwner = owner;
-
     const PlaidCat1 = transaction.category[0] ? transaction.category[0] : "";
     const PlaidCat2 = transaction.category[1] ? transaction.category[1] : "";
     const PlaidCat3 = transaction.category[2] ? transaction.category[2] : "";
-
-    // const getCategory = () => {
-    //   // General categorization - everything runs through this to get initial guess at categorization
-    //   let category = PlaidCat1;
-    //   if (PlaidCat3 !== "") {
-    //     category = plaidCategory3Map[PlaidCat3];
-    //   } else if (PlaidCat2 !== "") {
-    //     category = plaidCategory2Map[PlaidCat2];
-    //   } else if (PlaidCat1 === "Service") {
-    //     category = "Misc";
-    //   }
-    //   // Specific categorization
-    //   if (transaction.name.includes("Amazon")) {
-    //     category = "Amazon";
-    //     return category;
-    //   }
-    //   if (transaction.name.includes("CONSERVICE LLC")) {
-    //     category = "Rent";
-    //     return category;
-    //   }
-    //   return category;
-    // };
-
-    // const getTransactionType = () => {
-    //   const checkName = (term) => {
-    //     let tname = transaction.name.toLowerCase();
-    //     term = term.toLowerCase();
-    //     if (tname.includes(term)) {
-    //       console.log(tname, term, true);
-    //       return true;
-    //     } else {
-    //       return false;
-    //     }
-    //   };
-    //   // Expense, Income, Credit Card Payment, Internal account transfer
-    //   if (checkName("DISCOVER BANK P2P WILLIAM LIU WEB ID: 1770527921")) {
-    //     return "Internal Account Transfer";
-    //   } else if (PlaidCat1 === "Payment" && PlaidCat2 === "Credit Card") {
-    //     return "Credit Card Payment";
-    //   } else if (
-    //     PlaidCat2 === "Internal Account Transfer" ||
-    //     checkName("Discover High Yield") ||
-    //     checkName("GOLDMAN SACHS BA COLLECTION") ||
-    //     checkName("ACH Transfer to JPMORGAN CHASE BANK")
-    //   ) {
-    //     return "Internal Account Transfer";
-    //   } else if (
-    //     PlaidCat1 === "Transfer" &&
-    //     PlaidCat2 === "Payroll" &&
-    //     transaction.amount < 0
-    //   ) {
-    //     return "Income";
-    //   } else if (PlaidCat1 === "Tax" && PlaidCat2 === "Refund") {
-    //     return "Income";
-    //   } else if (
-    //     PlaidCat3 === "Coinbase" ||
-    //     checkName("Coinbase") ||
-    //     checkName("Robinhood") ||
-    //     checkName("WEBULL") ||
-    //     checkName("Manual DB-Bkrg") ||
-    //     checkName("Manual CR-Bkrg") ||
-    //     (PlaidCat1 === "Transfer" &&
-    //       PlaidCat2 === "Withdrawal" &&
-    //       PlaidCat3 == "")
-    //   ) {
-    //     return "Investment Account Transfer";
-    //   } else if (checkName("MEALPAL PAYMENT")) {
-    //     return "Income";
-    //   } else if (PlaidCat2 === "Interest Earned") {
-    //     return "Income";
-    //   } else if (
-    //     PlaidCat3 === "Venmo" ||
-    //     transaction.name.includes("Cash App") ||
-    //     transaction.name.includes("Zelle")
-    //   ) {
-    //     return "Payment App Transfer";
-    //   } else if (PlaidCat1 === "Transfer" && PlaidCat2 === "Deposit") {
-    //     return "Income";
-    //   } else if (PlaidCat1 === "Transfer" && PlaidCat2 === "Credit") {
-    //     return "Income";
-    //   } else if (transaction.amount < -750) {
-    //     return "Income";
-    //   } else {
-    //     return "Expense";
-    //   }
-    // };
-
-    // Maps the transaction data into the correct order
-    let arr = [
-      transaction.date,
-      transaction.name,
-      merchantName,
-      transaction.payment_channel,
-      transaction.iso_currency_code,
-      PlaidCat1,
-      PlaidCat2,
-      PlaidCat3,
-      transaction.category_id,
-      transaction.transaction_type,
-      transaction.transaction_id,
-      owner,
-      account,
-      mask,
-      accounts[account_id].name,
-      accounts[account_id].type,
-      accounts[account_id].subtype,
-      transaction.location.address,
-      transaction.location.city,
-      transaction.location.region,
-      transaction.location.postal_code,
-      transaction.location.country,
-      transaction.location.store_number,
-      "Cat hold",
-      transaction.amount,
-    ];
-    console.log("arr", arr);
-    result.push(arr);
+    const updatedTransaction = {
+      Rollup: "Rollup",
+      Date: transaction.date,
+      Name: transaction.name,
+      "Marchant Name": merchantName,
+      "Payment Channel": transaction.payment_channel,
+      "ISO Currency Code": transaction.iso_currency_code,
+      "Plaid Category 1": PlaidCat1,
+      "Plaid Category 2": PlaidCat2,
+      "Plaid Category 3": PlaidCat3,
+      "Category ID": transaction.category_id,
+      "Transaction Type": transaction.transaction_type,
+      "Transaction ID": transaction.transaction_id,
+      Owner: owner,
+      Account: account,
+      Mask: mask,
+      "Account Name": accounts[account_id].name,
+      "Account Type": accounts[account_id].type,
+      "Account Subtype": accounts[account_id].subtype,
+      Address: transaction.location.address,
+      City: transaction.location.city,
+      Region: transaction.location.region,
+      "Postal Code": transaction.location.postal_code,
+      Country: transaction.location.country,
+      "Store Number": transaction.location.store_number,
+      Category: PlaidCat1,
+      Amount: transaction.amount,
+    };
+    result.push(updatedTransaction);
   });
-  //   Should headers be included?
-  if (includeHeader) {
-    result.unshift(tableHeaders);
-  }
-  console.log("result", result);
   return result;
 };
 
-const insertRow = (sheetName, rowData, optIndex) => {
-  let ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(sheetName);
-  var lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    var index = optIndex || 1;
-    sheet
-      .insertRowBefore(index)
-      .getRange(index, 1, 1, rowData.length)
-      .setValues([rowData]);
-    SpreadsheetApp.flush();
-  } finally {
-    lock.releaseLock();
+const transformTransactions = (transactions, includeHeaders) => {
+  let transformedTransactions = applyRulesToData(transactions);
+  // Turn ruled data back into a 2D array
+  transformedTransactions = transformedTransactions.map((row) =>
+    Object.keys(row).map((key) => row[key])
+  );
+  // If includeHeaders is true, add the headers to the top of the array
+  if (includeHeaders && transactions[0]) {
+    transformedTransactions.unshift(
+      Object.keys(transactions[0]).map((key) => key)
+    );
   }
+  return transformedTransactions;
 };
 
-const writeDataToBottomOfTab = (tabName, datas) => {
-  if (datas.length === 0) {
+const writeDataToBottomOfTab = (tabName, data, clearTab) => {
+  if (data.length === 0) {
     console.log("No data to write");
     return;
   }
-  var SS = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = SS.setActiveSheet(SS.getSheetByName(tabName));
-  var lastRow = sheet.getLastRow() + 1;
-  var lastColumn = sheet.getLastColumn() + 1;
-  var rows = datas.length;
-  var cols = datas[1].length;
-  var writeResult = sheet.getRange(lastRow, 1, rows, cols).setValues(datas);
+
+  let writeSS = SpreadsheetApp.getActiveSpreadsheet();
+  let writesheet = writeSS.setActiveSheet(writeSS.getSheetByName(tabName));
+
+  if (clearTab) {
+    writesheet.clear();
+  }
+  const lastRow = writesheet.getLastRow() + 1;
+  const lastColumn = writesheet.getLastColumn() + 1;
+  const rows = data.length;
+  const cols = data[1].length;
+  const writeResult = writesheet
+    .getRange(lastRow, 1, rows, cols)
+    .setValues(data);
   SpreadsheetApp.flush();
   return writeResult;
 };
@@ -241,7 +150,7 @@ const getHeaders = (sheetName) => {
  */
 const reset = () => {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(transactionSheetName);
+  var sheet = ss.getSheetByName(runningTransactionsSheetName);
 
   var last_row = sheet.getLastRow();
   sheet.getRange("2:" + last_row).activate();
@@ -268,7 +177,7 @@ const getAccountsMap = (accounts) => {
  */
 const getTransactionIds = (columnLetter) => {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(transactionSheetName);
+  let sheet = ss.getSheetByName(runningTransactionsSheetName);
   let transactionIds = sheet
     .getRange(`${columnLetter}2:${columnLetter}`)
     .getValues()
@@ -279,101 +188,33 @@ const getTransactionIds = (columnLetter) => {
 };
 
 const alertViaEmail = (owner, account, func, error) => {
-  MailApp.sendEmail(
-    "willliuwillliu@gmail.com",
-    `WAWAMONEYV2 - ${owner} - ${account} - ${func}`,
-    `Error: ${JSON.stringify(
-      error
-    )} ____ https://docs.google.com/spreadsheets/d/1g6qZ4XN2_hf7RLrJUKM4TDi5VgQdB4_HKCTUpeieaRg/edit#gid=822001289`
-  );
-};
-
-const reconcile = () => {
-  let ss = SpreadsheetApp.getActiveSpreadsheet();
-  let reconciliationSheet = ss.getSheetByName("Reconciliation");
-  let start = reconciliationSheet.getRange("B1").getValue();
-  let end = reconciliationSheet.getRange("B2").getValue();
-  let oweRange = reconciliationSheet.getRange("A5:C19");
-  let tableRange = reconciliationSheet.getRange("A20:AG");
-  oweRange.clear();
-  tableRange.clear();
-  let transactions = ss
-    .getSheetByName("Transactions")
-    .getDataRange()
-    .getValues();
-  const headers = transactions.shift();
-  // get header indexes
-  // filter transactions between start and end date
-  let filteredTransactions = transactions.filter((transaction) => {
-    let date = new Date(transaction[headers.indexOf("Date")]);
-    if (
-      date >= start &&
-      date <= end &&
-      transaction[headers.indexOf("Owner")] !==
-        transaction[headers.indexOf("Split")]
-    ) {
-      return true;
-    }
-  });
-
-  // Create object where key is owner and value is split
-  let ownerSplitMap = {};
-  filteredTransactions.forEach((transaction) => {
-    let owner = transaction[headers.indexOf("Owner")];
-    let split = transaction[headers.indexOf("Split")];
-    if (ownerSplitMap[owner]) {
-      if (ownerSplitMap[owner][split]) {
-        ownerSplitMap[owner][split] += transaction[headers.indexOf("Amount")];
-      } else {
-        ownerSplitMap[owner][split] = transaction[headers.indexOf("Amount")];
-      }
-    } else {
-      let splitObj = {};
-      splitObj[split] = transaction[headers.indexOf("Amount")];
-      ownerSplitMap[owner] = splitObj;
-    }
-  });
-
-  let result = [["Owner", "Owed To", "Amount"]];
-  for (let owedTo in ownerSplitMap) {
-    for (let ower in ownerSplitMap[owedTo]) {
-      result.push([ower, owedTo, ownerSplitMap[owedTo][ower]]);
-    }
+  if (email) {
+    MailApp.sendEmail(
+      email,
+      `Plaid To Google Sheets - ${owner} - ${account} - ${func}`,
+      `Error: ${JSON.stringify(error)}`
+    );
   }
-  reconciliationSheet
-    .getRange(4, 1, result.length, result[0].length)
-    .setValues(result);
-  // Write filtered transactions on row 15 of reconciliationSheet
-  filteredTransactions.unshift(headers);
-  reconciliationSheet
-    .getRange(
-      20,
-      1,
-      filteredTransactions.length,
-      filteredTransactions[0].length
-    )
-    .setValues(filteredTransactions);
 };
 
 /**
- * Gets the start date by looking at row 2 of a specified column. Assumes the dataset is sorted. If the column is empty, returns the current date minus buffer.
- * @param {*} buffer
- * @param {*} dateColumnLetter
- * @returns
+ * Gets the start date by looking at row 2 of a specified column. Assumes the dataset is sorted.
+ * @returns the start date to send to plaid API
  */
-const getStartDate = (buffer, dateColumnLetter) => {
+const getStartDate = () => {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(transactionSheetName);
-  console.log(`${dateColumnLetter}:2`);
-  const val = sheet.getRange(`${dateColumnLetter}2`).getValue();
-  console.log(val);
+  const sheet = ss.getSheetByName(runningTransactionsSheetName);
+  const val = sheet.getRange(2, transactionsDateColumnNumber + 1).getValue();
   let start_date;
+  // If there is no data in the column, the start date is the current date minus 800 days which should get the last 2 years of data (plaid's max)
   if (val == "") {
     start_date = new Date();
+    start_date.setDate(start_date.getDate() - 800);
   } else {
+    // If there a latest date, use the latest minus the 10 days to account for any transactions that may have been processed
     start_date = new Date(val);
+    start_date.setDate(start_date.getDate() - 10);
   }
-  start_date.setDate(start_date.getDate() - buffer);
   return start_date;
 };
 
@@ -399,7 +240,3 @@ const getJsonArrayFromData = (data) => {
 
   return result;
 };
-
-function test1() {
-  console.log("im here");
-}
