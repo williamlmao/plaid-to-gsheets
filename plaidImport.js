@@ -1,10 +1,28 @@
 // Import all new transactions & account balances. Excludes pending transactions. Running.
-const importAll = () => {
+const importLatest = () => {
+  const start_date = formatDate(getStartDate());
+  const end_date = formatDate(new Date());
+  const data = importTransactionsAndAccountBalances(start_date, end_date);
+  writeDataToBottomOfTab(
+    runningTransactionsSheetName,
+    data.transactions,
+    false
+  );
+  writeDataToBottomOfTab(accountBalancesSheetName, data.accountBalances, false);
+};
+
+const importByDateRange = () => {
+  const importSettings = ss.getSheetByName(importSettingsSheetName);
+  const startDate = formatDate(importSettings.getRange("B3").getValue());
+  const endDate = formatDate(importSettings.getRange("B4").getValue());
+  const data = importTransactionsAndAccountBalances(start_date, end_date);
+  writeDataToBottomOfTab(runningTransactionsSheetName, data.transactions, true);
+  writeDataToBottomOfTab(accountBalancesSheetName, data.accountBalances, false);
+};
+
+const importTransactionsAndAccountBalances = (start_date, end_date) => {
   let transactions = [];
   let accountBalances = [];
-  // Start date is the latest transaction date minus buffer
-  const start_date = formatDate(getStartDate("A"));
-  const end_date = formatDate(new Date());
   // Get all of the access tokens + account metadata
   const tokensProp = JSON.parse(
     PropertiesService.getScriptProperties().getProperty("tokens")
@@ -37,8 +55,7 @@ const importAll = () => {
       );
     }
   }
-  writeDataToBottomOfTab(runningTransactionsSheetName, transactions, false);
-  writeDataToBottomOfTab(accountBalancesSheetName, accountBalances, false);
+  return { transactions, accountBalances };
 };
 
 /**

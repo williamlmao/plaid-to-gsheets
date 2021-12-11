@@ -1,7 +1,7 @@
 const onOpen = () => {
   ui.createMenu("Plaid API Ingest")
-    .addItem("Import Latest Transactions", "importAll")
-    .addItem("Import Date Range", "importAll")
+    .addItem("Import Latest Transactions", "importLatest")
+    .addItem("Import Date Range", "importByDateRange")
     .addItem("Set up", "setUp")
     .addToUi();
 };
