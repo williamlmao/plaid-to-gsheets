@@ -83,10 +83,7 @@ const importTransactionsAndAccountBalances = (
         filterForTransactionIds
       );
 
-      let transformedTransactions = transformTransactions(
-        cleanedTransactions,
-        includeHeaders
-      );
+      let transformedTransactions = transformTransactions(cleanedTransactions);
 
       transactions = transactions.concat(transformedTransactions);
       accountBalances = accountBalances.concat(
@@ -185,7 +182,7 @@ const hitPlaidTransactionsEndpoint = (
         transactions = transactions.concat(paginatedResponse.transactions);
       }
       let result = { transactions: transactions, accounts: response.accounts };
-      console.log("result", result);
+
       return result;
     } catch (error) {
       // handle eror

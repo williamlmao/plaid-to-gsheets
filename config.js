@@ -1,31 +1,38 @@
 // *** EDIT BELOW THIS LINE ***
+
 // Environment can either be 'sandbox' or 'development'. Keep this as 'sandbox' if you want to play around with the example data, or change this to 'development' once you have put in your own credentials.
-const environment = "sandbox";
-const client_id = "60df35af19a2660010f8b6e8";
-const secret = "b9e93c1b33370097dbef1ae743fea6";
 // You can include multiple accounts here under the same client. Use this format per account. Owner name, then account name.
 // Owner: {
 //   Account1: {
-//     token: "access-sandbox-e5ad8ed8-e0c6-4b67-8681-279c0cf172b4",
+//     token: "access-sandbox-e5ad8ed8-e0c6-4b69-8681-279c0cf172b4",
+//     earliestDate: "2019-07-29",
+//   },
+//   Account2: {
+//     token: "access-sandbox-e5ad8ed8-e0c6-4b67-8681-279c0cf172b9",
 //     earliestDate: "2019-07-29",
 //   },
 // },
+const environment = "development";
+const client_id = "yourIDHere";
+const secret = "yourSecretHere";
 const tokens = {
   Sandbox: {
     Chase: {
-      token: "access-sandbox-a5d8d600-bf08-4cea-814c-497563ecc9ba",
+      token: "accessTokenHere",
       // Earliest date signified a hard stop of the earliest date to pull transactions.
       earliestDate: "2019-07-29",
     },
   },
 };
+
 // *** EDIT ABOVE THIS LINE ***
 
 // *** NOT NECESSARY TO EDIT BELOW THIS LINE, BUT YOU CAN IF YOU WANT ***
 const runningTransactionsSheetName = "Transactions (Running)";
 const dateRangeTransactionsSheetName = "Transactions (Date Range)";
 const accountBalancesSheetName = "Account Balances";
-const importSettingsSheetName = "Import Settings";
+const importSettingsSheetName = "Date Range Import Settings";
+const rulesSheetName = "Rules";
 const email = "";
 const count = 500;
 

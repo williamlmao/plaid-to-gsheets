@@ -104,9 +104,12 @@ const buildRuleApplicationAlgo = (rules) => {
  * @returns transformed data as a JSON array of objects where each object is a transformed row from Data. Keys are headers.
  */
 const applyRulesToData = (data) => {
-  const rulesData = getJsonArrayFromData(
-    ss.getSheetByName("Rules").getDataRange().getValues()
+  let rulesData = getJsonArrayFromData(
+    ss.getSheetByName(rulesSheetName).getRange("C1:P").getValues()
   );
+  // Filter out empty rows
+  rulesData = rulesData.filter((row) => row["Column 1"]);
+  console.log(rulesData);
   const ruleApplicationAlgorithm = buildRuleApplicationAlgo(rulesData);
   const ruledData = (data) => {
     return data.map(ruleApplicationAlgorithm);

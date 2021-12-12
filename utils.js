@@ -38,13 +38,9 @@ const cleanTransactions = (
     }
 
     if (filterForTransactionIds) {
-      if (!transactionIds.includes(transaction.transaction_id)) {
+      if (transactionIds.includes(transaction.transaction_id)) {
         return;
       }
-    }
-    // Filter out existing transactions
-    if (transactionIds.includes(transaction.transaction_id)) {
-      return;
     }
 
     const getTransactionType = () => {
@@ -122,18 +118,18 @@ const cleanTransactions = (
   return result;
 };
 
-const transformTransactions = (transactions, includeHeaders) => {
+const transformTransactions = (transactions) => {
   let transformedTransactions = applyRulesToData(transactions);
   // Turn ruled data back into a 2D array
   transformedTransactions = transformedTransactions.map((row) =>
     Object.keys(row).map((key) => row[key])
   );
-  // If includeHeaders is true, add the headers to the top of the array
-  if (includeHeaders && transactions[0]) {
-    transformedTransactions.unshift(
-      Object.keys(transactions[0]).map((key) => key)
-    );
-  }
+  // // If includeHeaders is true, add the headers to the top of the array
+  // if (includeHeaders && transactions[0]) {
+  //   transformedTransactions.unshift(
+  //     Object.keys(transactions[0]).map((key) => key)
+  //   );
+  // }
   return transformedTransactions;
 };
 
@@ -163,11 +159,12 @@ const writeDataToBottomOfTab = (tabName, data, clearTab) => {
 /**
  * Left aligns all cells in the spreadsheet and sorts by date
  */
-const cleanup = (sheetName, transactionsDateColumnNumber) => {
+const cleanup = (sheetName) => {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(sheetName);
   sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).activate();
   sheet.getActiveRangeList().setHorizontalAlignment("left");
+  console.log("bounds", transactionsDateColumnNumber + 1);
   sheet.sort(transactionsDateColumnNumber + 1, false);
   console.log(`${sheetName} has been cleaned up`);
 };
@@ -233,7 +230,7 @@ const getTransactionIds = () => {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(runningTransactionsSheetName);
   let transactionIds = sheet
-    .getRange(transactionIdColumnNumber + 1, 1, sheet.getLastRow(), 1)
+    .getRange(1, transactionIdColumnNumber + 1, sheet.getLastRow() + 1, 1)
     .getValues()
     .flat();
   // filter out blank values
