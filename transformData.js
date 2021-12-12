@@ -1,6 +1,6 @@
-const data = ss.getSheetByName("Data").getDataRange().getValues();
-// Bring headers from data into transformedData, because getJsonArrayFromData removes them
-const dataHeaders = data[0];
+// const data = ss.getSheetByName("Data").getDataRange().getValues();
+// // Bring headers from data into transformedData, because getJsonArrayFromData removes them
+// const dataHeaders = data[0];
 
 const operators = {
   equals: (a, b) => a === b,
@@ -40,7 +40,6 @@ const buildRule = (rule) => {
   let transformValue2 = rule["New Value 2\n(Optional)"];
 
   const ruleFunction = (row) => {
-    console.log("row", row);
     if (!operator1) {
       // ui alert if no operator is selected
       if (operator1 === "") {
@@ -113,16 +112,4 @@ const applyRulesToData = (data) => {
     return data.map(ruleApplicationAlgorithm);
   };
   return ruledData(data);
-};
-
-const transformDataFromSheets = () => {
-  const dataJsonArray = getJsonArrayFromData(data);
-  const ruledData = applyRulesToData(dataJsonArray);
-  // Turn ruled data back into a 2D array
-  const transformedData = ruledData.map((row) =>
-    Object.keys(row).map((key) => row[key])
-  );
-  // Add headers back to transformed data
-  transformedData.unshift(dataHeaders);
-  writeDataToBottomOfTab("Transformed Data", transformedData, true);
 };

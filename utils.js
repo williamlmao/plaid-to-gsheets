@@ -15,8 +15,14 @@ const onOpen = () => {
  * @param {*} account
  * @returns
  */
-const cleanTransactions = (transactions, accounts, owner, account) => {
-  const transactionIds = getTransactionIds("L");
+const cleanTransactions = (
+  transactions,
+  accounts,
+  owner,
+  account,
+  filterForTransactionIds
+) => {
+  const transactionIds = getTransactionIds();
   let result = [];
   transactions.forEach((transaction) => {
     let account_id = transaction.account_id;
@@ -31,16 +37,58 @@ const cleanTransactions = (transactions, accounts, owner, account) => {
       return;
     }
 
+    if (filterForTransactionIds) {
+      if (!transactionIds.includes(transaction.transaction_id)) {
+        return;
+      }
+    }
     // Filter out existing transactions
     if (transactionIds.includes(transaction.transaction_id)) {
       return;
     }
 
+    const getTransactionType = () => {
+      let transactionType = "Expense";
+
+      // Internal Account Transfer
+      if (PlaidCat2 === "Internal Account Transfer") {
+        transactionType = "Internal Account Transfer";
+      }
+      // Investment Account Transfer
+      if (
+        (PlaidCat1 === "Transfer" && transaction.name.includes("Bkrg")) ||
+        PlaidCat3 === "Coinbase"
+      ) {
+        transactionType = "Investment Account Transfer";
+      }
+      if (
+        PlaidCat3 === "Venmo" ||
+        transaction.name.includes("Zelle") ||
+        transaction.name.includes("Cash App")
+      ) {
+        // Payment App Transfer
+        transactionType = "Payment App Transfer";
+      }
+      // Credit Card Payment
+      if (PlaidCat2 === "Plaid Category 2") {
+        transactionType = "Credit Card Payment";
+      }
+      // Income (negative numbers are credits)
+      if (
+        (PlaidCat2 === "Deposit" ||
+          PlaidCat2 === "Payroll" ||
+          PlaidCat2 === "Interest Earned") &&
+        transaction.amount < 0
+      ) {
+        transactionType = "Income";
+      }
+      return transactionType;
+    };
+
     const PlaidCat1 = transaction.category[0] ? transaction.category[0] : "";
     const PlaidCat2 = transaction.category[1] ? transaction.category[1] : "";
     const PlaidCat3 = transaction.category[2] ? transaction.category[2] : "";
     const updatedTransaction = {
-      Rollup: "Rollup",
       Date: transaction.date,
       Name: transaction.name,
       "Marchant Name": merchantName,
@@ -50,7 +98,8 @@ const cleanTransactions = (transactions, accounts, owner, account) => {
       "Plaid Category 2": PlaidCat2,
       "Plaid Category 3": PlaidCat3,
       "Category ID": transaction.category_id,
-      "Transaction Type": transaction.transaction_type,
+      "Transaction Space": transaction.transaction_type,
+      "Transaction Type": getTransactionType(),
       "Transaction ID": transaction.transaction_id,
       Owner: owner,
       Account: account,
@@ -66,6 +115,7 @@ const cleanTransactions = (transactions, accounts, owner, account) => {
       "Store Number": transaction.location.store_number,
       Category: PlaidCat1,
       Amount: transaction.amount,
+      Rollup: "Rollup",
     };
     result.push(updatedTransaction);
   });
@@ -88,7 +138,7 @@ const transformTransactions = (transactions, includeHeaders) => {
 };
 
 const writeDataToBottomOfTab = (tabName, data, clearTab) => {
-  if (data.length === 0) {
+  if (data.length === 0 || !data) {
     console.log("No data to write");
     return;
   }
@@ -102,7 +152,7 @@ const writeDataToBottomOfTab = (tabName, data, clearTab) => {
   const lastRow = writesheet.getLastRow() + 1;
   const lastColumn = writesheet.getLastColumn() + 1;
   const rows = data.length;
-  const cols = data[1].length;
+  const cols = data[0].length;
   const writeResult = writesheet
     .getRange(lastRow, 1, rows, cols)
     .setValues(data);
@@ -113,12 +163,12 @@ const writeDataToBottomOfTab = (tabName, data, clearTab) => {
 /**
  * Left aligns all cells in the spreadsheet and sorts by date
  */
-const cleanup = (sheetName, dateColumnPosition) => {
+const cleanup = (sheetName, transactionsDateColumnNumber) => {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(sheetName);
   sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).activate();
   sheet.getActiveRangeList().setHorizontalAlignment("left");
-  sheet.sort(dateColumnPosition, false);
+  sheet.sort(transactionsDateColumnNumber + 1, false);
   console.log(`${sheetName} has been cleaned up`);
 };
 
@@ -126,15 +176,19 @@ const cleanup = (sheetName, dateColumnPosition) => {
  * Returns the date in a Plaid friendly format, e.g. YYYY-MM-DD
  */
 const formatDate = (date) => {
-  var d = new Date(date),
-    month = "" + (d.getMonth() + 1),
-    day = "" + d.getDate(),
-    year = d.getFullYear();
+  if (date) {
+    var d = new Date(date),
+      month = "" + (d.getMonth() + 1),
+      day = "" + d.getDate(),
+      year = d.getFullYear();
 
-  if (month.length < 2) month = "0" + month;
-  if (day.length < 2) day = "0" + day;
+    if (month.length < 2) month = "0" + month;
+    if (day.length < 2) day = "0" + day;
 
-  return [year, month, day].join("-");
+    return [year, month, day].join("-");
+  } else {
+    return undefined;
+  }
 };
 
 const getHeaders = (sheetName) => {
@@ -175,11 +229,11 @@ const getAccountsMap = (accounts) => {
 /**
  * Returns array of transaction IDs
  */
-const getTransactionIds = (columnLetter) => {
+const getTransactionIds = () => {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(runningTransactionsSheetName);
   let transactionIds = sheet
-    .getRange(`${columnLetter}2:${columnLetter}`)
+    .getRange(transactionIdColumnNumber + 1, 1, sheet.getLastRow(), 1)
     .getValues()
     .flat();
   // filter out blank values
@@ -239,4 +293,75 @@ const getJsonArrayFromData = (data) => {
   }
 
   return result;
+};
+
+const importOtherAccounts = () => {
+  // Get all sheets that contain the word "Ingest"
+  let sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+  let ingestSheets = sheets.filter((sheet) =>
+    sheet.getName().includes("Ingest")
+  );
+  let accountHeaderMap = getAccountHeaderMap();
+  // For each ingestSheet, check the Other Account Map sheet and grab the
+  ingestSheets.forEach((sheet) => {
+    let sheetName = sheet.getName();
+    sheetName = sheetName.replace("Ingest", "");
+    sheetName = sheetName.trim();
+    // Get headers from the sheet
+    let data = sheet.getDataRange().getValues();
+    let headers = data.shift();
+    let result = [];
+    if (!accountHeaderMap[sheetName]) {
+      ui.alert(
+        `The ${sheetName} account you are trying to ingest does not have a corresponding row in the Account Header Map sheet. Please make sure that there is a row present and that the value in column A matches the text you have in the ingest tab. `
+      );
+    }
+    data.forEach((row) => {
+      let transaction = {};
+      // Loop through transaction headers and find the matching header in the Other Account Map sheet
+      transactionHeaders.forEach((header) => {
+        let otherAccountHeader = accountHeaderMap[sheetName][header];
+        // If the other account header is found, add the value to the row
+        if (headers.indexOf(otherAccountHeader) > -1) {
+          transaction[header] = row[headers.indexOf(otherAccountHeader)];
+        } else {
+          transaction[header] = accountHeaderMap[sheetName][header];
+        }
+      });
+      result.push(transaction);
+    });
+    result = transformTransactions(result, false);
+    // Write result to bottom of transactions and then clear the ingest sheet
+    writeDataToBottomOfTab(runningTransactionsSheetName, result, false);
+    cleanup("Transactions (Running)");
+    sheet.clear();
+    let currentTime = new Date();
+    sheet
+      .getRange("A1")
+      .setValue(
+        `The ${sheetName} data that was here was ingested to Transactions (Running) at ${currentTime.toISOString()}. You can clear this message and use this sheet again.`
+      );
+  });
+};
+
+/**
+ * Used to create a lookup table to normalize other reports into the same format as the transaction report
+ * @returns {Object} To lookup the resp
+ */
+const getAccountHeaderMap = () => {
+  let accountHeaderMapData = ss
+    .getSheetByName("Account Header Map")
+    .getDataRange()
+    .getValues();
+  let accountHeaderMap = {};
+  let transactionsRow = accountHeaderMapData[0];
+  accountHeaderMapData.forEach((row, index) => {
+    let headerMap = {};
+    row.forEach((header, index) => {
+      headerMap[transactionsRow[index]] = header;
+    });
+    accountHeaderMap[row[0]] = headerMap;
+  });
+  console.log(accountHeaderMap);
+  return accountHeaderMap;
 };

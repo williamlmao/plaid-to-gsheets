@@ -1,54 +1,93 @@
 // Import all new transactions & account balances. Excludes pending transactions. Running.
 const importLatest = () => {
+  const runningTransactionsSheet = ss.getSheetByName(
+    runningTransactionsSheetName
+  );
+  const headersPresent =
+    runningTransactionsSheet.getRange("A1").getValue() === transactionHeaders[0]
+      ? true
+      : false;
   const start_date = formatDate(getStartDate());
   const end_date = formatDate(new Date());
-  const data = importTransactionsAndAccountBalances(start_date, end_date);
+  const data = importTransactionsAndAccountBalances(start_date, end_date, true);
+  if (!headersPresent) {
+    data.transactions.unshift(transactionHeaders);
+  }
+
   writeDataToBottomOfTab(
     runningTransactionsSheetName,
     data.transactions,
     false
   );
   writeDataToBottomOfTab(accountBalancesSheetName, data.accountBalances, false);
+  cleanup(runningTransactionsSheetName, transactionsDateColumnNumber);
+  cleanup(accountBalancesSheetName, accountBalancesDateColumnNumber);
 };
 
+/**
+ * Uses the dates in the "Import settings" sheet to determine the date range to pull from. plaid API can only get the last 2 years of data.
+ */
 const importByDateRange = () => {
   const importSettings = ss.getSheetByName(importSettingsSheetName);
-  const startDate = formatDate(importSettings.getRange("B3").getValue());
-  const endDate = formatDate(importSettings.getRange("B4").getValue());
-  const data = importTransactionsAndAccountBalances(start_date, end_date);
-  writeDataToBottomOfTab(runningTransactionsSheetName, data.transactions, true);
+  const start_date = formatDate(importSettings.getRange("B3").getValue());
+  const end_date = formatDate(importSettings.getRange("B4").getValue());
+  if (!start_date || !end_date) {
+    ui.alert(
+      'Please enter a valid start and end date in the "Import settings" sheet.'
+    );
+    return;
+  }
+  const data = importTransactionsAndAccountBalances(
+    start_date,
+    end_date,
+    false
+  );
+  writeDataToBottomOfTab(
+    dateRangeTransactionsSheetName,
+    data.transactions,
+    true
+  );
   writeDataToBottomOfTab(accountBalancesSheetName, data.accountBalances, false);
+  cleanup(accountBalancesSheetName, accountBalancesDateColumnNumber);
 };
 
-const importTransactionsAndAccountBalances = (start_date, end_date) => {
+const importTransactionsAndAccountBalances = (
+  start_date,
+  end_date,
+  filterForTransactionIds
+) => {
   let transactions = [];
   let accountBalances = [];
-  // Get all of the access tokens + account metadata
-  const tokensProp = JSON.parse(
-    PropertiesService.getScriptProperties().getProperty("tokens")
-  );
   // For each access token, get all transactions and account balances. Normalize the data.
-  for (let owner in tokensProp) {
-    for (let account in tokensProp[owner]) {
-      const accessToken = tokensProp[owner][account]["token"];
+  for (let owner in tokens) {
+    for (let account in tokens[owner]) {
+      const access_token = tokens[owner][account]["token"];
+      const access_token_earliest_date = tokens[owner][account]["earliestDate"]
+        ? tokens[owner][account]["earliestDate"]
+        : undefined;
       let response = hitPlaidTransactionsEndpoint(
         start_date,
         end_date,
         owner,
         account,
-        "sandbox"
+        access_token,
+        access_token_earliest_date,
+        environment
       );
 
       let cleanedTransactions = cleanTransactions(
         response.transactions,
         getAccountsMap(response.accounts),
         owner,
-        account
+        account,
+        filterForTransactionIds
       );
+
       let transformedTransactions = transformTransactions(
         cleanedTransactions,
-        true
+        includeHeaders
       );
+
       transactions = transactions.concat(transformedTransactions);
       accountBalances = accountBalances.concat(
         getAccountBalances(response.accounts, owner)
@@ -71,6 +110,8 @@ const hitPlaidTransactionsEndpoint = (
   end_date,
   owner,
   account,
+  access_token,
+  access_token_earliest_date,
   env
 ) => {
   console.log(
@@ -80,21 +121,11 @@ const hitPlaidTransactionsEndpoint = (
     env == "sandbox" ? "sandbox" : "development"
   }.plaid.com/transactions/get`;
   try {
-    const tokensProp = JSON.parse(
-      PropertiesService.getScriptProperties().getProperty("tokens")
-    );
-    let ACCESS_TOKEN_EARLIEST_DATE = tokensProp[owner][account]["earliestDate"];
-    ACCESS_TOKEN_EARLIEST_DATE = new Date(ACCESS_TOKEN_EARLIEST_DATE);
     // Since transaction IDs are only unique to an access token. This prevents an duplicate transactions in the case an access token is swapped out and then the date range is adjusted to before the date the access token was swapped.
-    if (ACCESS_TOKEN_EARLIEST_DATE > start_date) {
-      start_date = ACCESS_TOKEN_EARLIEST_DATE;
+    if (access_token_earliest_date > start_date) {
+      start_date = access_token_earliest_date;
     }
-    const ACCESS_TOKEN = tokensProp[owner][account]["token"];
-    const CLIENT_ID =
-      PropertiesService.getScriptProperties().getProperty("client_id");
-    const SECRET =
-      PropertiesService.getScriptProperties().getProperty("secret");
-    const COUNT = 500;
+
     // headers are a parameter plaid requires for the post request
     var headers = {
       contentType: "application/json",
@@ -102,9 +133,9 @@ const hitPlaidTransactionsEndpoint = (
     };
     // data is a parameter plaid requires for the post request.
     var data = {
-      access_token: ACCESS_TOKEN,
-      client_id: CLIENT_ID,
-      secret: SECRET,
+      access_token: access_token,
+      client_id: client_id,
+      secret: secret,
       start_date: start_date,
       end_date: end_date,
     };
@@ -126,9 +157,9 @@ const hitPlaidTransactionsEndpoint = (
     // This part of the code was just used to pull historical data, but is not necessary for daily running.
     const updateRequestParameters = (transactions) => {
       var data = {
-        access_token: ACCESS_TOKEN,
-        client_id: CLIENT_ID,
-        secret: SECRET,
+        access_token: access_token,
+        client_id: client_id,
+        secret: secret,
         start_date: start_date,
         end_date: end_date,
         options: {
@@ -154,6 +185,7 @@ const hitPlaidTransactionsEndpoint = (
         transactions = transactions.concat(paginatedResponse.transactions);
       }
       let result = { transactions: transactions, accounts: response.accounts };
+      console.log("result", result);
       return result;
     } catch (error) {
       // handle eror
@@ -171,6 +203,12 @@ const hitPlaidTransactionsEndpoint = (
  */
 const getAccountBalances = (accountBalances, owner) => {
   try {
+    let accountBalancesSheet = ss.getSheetByName(accountBalancesSheetName);
+    let headersPresent =
+      accountBalancesSheet.getRange("A1").getValue() ===
+      accountBalanceHeaders[0]
+        ? true
+        : false;
     let lastAccountBalanceDatesObj = getLastAccountBalanceDateByMask();
     let currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
@@ -206,6 +244,9 @@ const getAccountBalances = (accountBalances, owner) => {
         result.push(arr);
       }
     });
+    if (!headersPresent) {
+      result.unshift(accountBalanceHeaders);
+    }
     return result;
   } catch (e) {
     console.log(e);
