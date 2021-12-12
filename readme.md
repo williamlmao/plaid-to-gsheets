@@ -21,9 +21,8 @@ I tried out some of the personal finance apps like Mint and Personal Capital. Th
 
 1. Copy [this google sheet](https://docs.google.com/spreadsheets/d/1d60g7UmSDV08VCtZAY5csPhTiRg6J1AdVuNEFb3993g/edit#gid=340231135).
 2. In the sheets menu, go to Extensions -> Apps Script
-3. In the Apps Script editor, go to `props.gs`
-
-- Set the client ID, secret, and access tokens for various accounts in the props file.
+3. In the Apps Script editor, go to `config.gs`. Plug in your plaid credentials into the file. You can use multiple accounts & access tokens, just follow that format.
+4. In the sheet menu, you should see "Plaid API Ingest". Run one of the functions, it will open a permissions pop up. Accept the permissions.
 
 # Ingesting data outside of the Plaid API
 
@@ -39,16 +38,35 @@ Ingest rules will still be applied to this data, but you'll use the respective T
 
 # Connecting to Data Studio
 
+1. Make a copy of [this report](https://datastudio.google.com/reporting/cb8b8470-309f-47ef-8157-ff331d0323f6)
+2. After you click "Make a copy", there will be a window that allows you to select a new data source. Click create data source -> Google Sheets -> Then connect it to the Transactions (Running).
+3. It should be good to go, but sometimes metrics on the chart get a little messed up when you switch data sources. If you see any chart that is not loading or the data looks wrong, click into it and change the metric to Amount.
+
 # Setting up automated imports using triggers
 
-# Editing the schema
+You can use triggers to pull in recent transactions and account balances every day.
+
+1. Go to Extensions-> Apps Script
+2. In the menu on the left, click the clock icon
+3. Add trigger
+4. Choose `importLatest` as the function to run
+5. Select time-driven as the event source
+6. Set the time you'd like
 
 # Applying Transformation Rules
 
-Transformation rules are applied automatically
+Transformation rules are applied automatically any time data is imported, whether that is importing the latest transactions, importing by date range, or manually importing a report. For manual reports, use the corresponding header in the Transactions (Running) sheet and NOT the header in the report you are importing.
 
 # FAQ
+
+#### Why is there an "Owner" field?
+
+My girlfriend and I manage our finances together, so we use this to import our accounts together. Owner helps us differentiate. You can delete it if you want (following instructions above), but I'd recommend leaving it because it might come in handy some day.
 
 #### What is "Rollup" column?
 
 It makes it easier to aggregate data for some charts in data studio.
+
+#### Can I edit the columns?
+
+Yes you can! You just need to update the headers in the config file and then update the mapping in `cleanTransactions` in utils.js
