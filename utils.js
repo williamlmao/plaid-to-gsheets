@@ -1,4 +1,5 @@
 const onOpen = () => {
+  const ui = SpreadsheetApp.getUi();
   ui.createMenu("Plaid API Ingest")
     .addItem("Import Latest Transactions", "importLatest")
     .addItem("Import Date Range", "importByDateRange")

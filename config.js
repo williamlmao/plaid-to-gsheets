@@ -17,7 +17,9 @@ const client_id = "yourIDHere";
 const secret = "yourSecretHere";
 const tokens = {
   Sandbox: {
+    // change "Sandbox" to the owner's name
     Chase: {
+      // change "Chase" to the account's name
       token: "accessTokenHere",
       // Earliest date signified a hard stop of the earliest date to pull transactions.
       earliestDate: "2019-07-29",
@@ -89,4 +91,3 @@ const accountBalancesMaskColumnNumber = accountBalanceHeaders.indexOf("Mask");
 const accountBalancesDateColumnNumber = accountBalanceHeaders.indexOf("Date");
 const transactionsDateColumnNumber = transactionHeaders.indexOf("Date");
 const ss = SpreadsheetApp.getActiveSpreadsheet();
-const ui = SpreadsheetApp.getUi();

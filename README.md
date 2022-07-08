@@ -27,7 +27,7 @@ This project was inspired by [this repo](https://github.com/hirefrank/plaid-txns
 
 1. Copy [this google sheet](https://docs.google.com/spreadsheets/d/1d60g7UmSDV08VCtZAY5csPhTiRg6J1AdVuNEFb3993g/edit#gid=340231135).
 2. In the sheets menu, go to Extensions -> Apps Script
-3. In the Apps Script editor, go to `config.gs`. Plug in your plaid credentials into the file. You can use multiple accounts & access tokens, just follow that format.
+3. In the Apps Script editor, go to `config.gs`. Plug in your plaid credentials into the file. You'll need to edit the following variables: `client_id`, `secret`, `tokens`. You can add multiple owners and accounts in `tokens`. If you'd like to play around with Plaid sandbox data, change `environment` to 'sandbox'. Make sure to grab the Plaid sandbox client_id and secret as they are different than your development account.
    ![menu](readmeImages/sheetsMenu.png)
 4. In the sheet menu, you should see "Plaid API Ingest". Run one of the functions, it will open a permissions pop up. Accept the permissions.
 5. You should now be able to run either "Ingest Latest" or "Ingest Date Range". I recommend pulling all of your historical data, think about what transformation rules you may want to set up (something like: If "Name" contains "Coinbase", change "Category" to "Crypto"). Once you have the rules set up, clear the data and pull it in again so that the rules are applied. More about rules in the section below.
