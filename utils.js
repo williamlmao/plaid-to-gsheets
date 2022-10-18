@@ -160,13 +160,13 @@ const writeDataToBottomOfTab = (tabName, data, clearTab) => {
 /**
  * Left aligns all cells in the spreadsheet and sorts by date
  */
-const cleanup = (sheetName) => {
+const cleanup = (sheetName, dateCol) => {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(sheetName);
   sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).activate();
   sheet.getActiveRangeList().setHorizontalAlignment("left");
-  console.log("bounds", transactionsDateColumnNumber + 1);
-  sheet.sort(transactionsDateColumnNumber + 1, false);
+  console.log("bounds", dateCol + 1);
+  sheet.sort(dateCol + 1, false);
   console.log(`${sheetName} has been cleaned up`);
 };
 
