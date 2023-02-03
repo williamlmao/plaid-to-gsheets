@@ -51,6 +51,7 @@ const transactionHeaders = [
   "Transaction Space",
   "Transaction Type",
   "Transaction ID",
+  "Pending Transaction ID",
   "Owner",
   "Account",
   "Mask",
@@ -87,6 +88,7 @@ const accountBalanceHeaders = [
 const developmentEndpoint = "https://development.plaid.com/transactions/get";
 const sandboxEndpoint = "https://sandbox.plaid.com/transactions/get";
 const transactionIdColumnNumber = transactionHeaders.indexOf("Transaction ID"); // Index values are zero indexed.
+const pendingTransactionIdColumnNumber = transactionHeaders.indexOf("Pending Transaction ID");
 const accountBalancesMaskColumnNumber = accountBalanceHeaders.indexOf("Mask");
 const accountBalancesDateColumnNumber = accountBalanceHeaders.indexOf("Date");
 const transactionsDateColumnNumber = transactionHeaders.indexOf("Date");

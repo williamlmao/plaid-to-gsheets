@@ -3,6 +3,7 @@ const onOpen = () => {
   ui.createMenu("Plaid API Ingest")
     .addItem("Import Latest Transactions", "importLatest")
     .addItem("Import Date Range", "importByDateRange")
+    .addItem("Remove Pending for Posted Transactions", "idsDelete")
     .addItem("Set up", "setUp")
     .addToUi();
 };
@@ -34,9 +35,9 @@ const cleanTransactions = (
         : transaction.name;
 
     // Filter out pending transactions
-    if (transaction.pending === true) {
-      return;
-    }
+    // if (transaction.pending === true) {
+    //   return;
+    // }
 
     if (filterForTransactionIds) {
       if (transactionIds.includes(transaction.transaction_id)) {
@@ -98,6 +99,7 @@ const cleanTransactions = (
       "Transaction Space": transaction.transaction_type,
       "Transaction Type": getTransactionType(),
       "Transaction ID": transaction.transaction_id,
+      "Pending Transaction ID": transaction.pending_transaction_id,
       Owner: owner,
       Account: account,
       Mask: mask,
@@ -237,6 +239,41 @@ const getTransactionIds = () => {
   // filter out blank values
   transactionIds = transactionIds.filter((id) => id !== "");
   return transactionIds;
+};
+
+/**
+ * Returns array of pending transaction IDs
+ */
+ const getPendingTransactionIds = () => {
+  let ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(runningTransactionsSheetName);
+  let pendingTransactionIds = sheet
+    .getRange(1, pendingTransactionIdColumnNumber + 1, sheet.getLastRow() + 1, 1)
+    .getValues()
+    .flat();
+  // filter out blank values
+  pendingTransactionIds = pendingTransactionIds.filter((id) => id !== "");
+  return pendingTransactionIds;
+};
+
+/**
+ * Removes pending transactions that have already posted
+*/
+const idsDelete = () => {
+  let transIds = getTransactionIds();
+  let pendTransId = getPendingTransactionIds();
+// Create array of ids in sheet that were pending but are now posted
+  let idDelete = transIds.filter(element => pendTransId.includes(element));
+// Look for the pending rows that match the posted ids and delete them
+  let ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(runningTransactionsSheetName);
+  let range = sheet.getDataRange();
+  let rangeVals = range.getValues();
+  for (var i = rangeVals.length - 1; i >= 0; i--) {
+    if (idDelete.includes(rangeVals[i][transactionIdColumnNumber])) {
+      sheet.deleteRow(i + 1);
+    };
+  };
 };
 
 const alertViaEmail = (owner, account, func, error) => {
